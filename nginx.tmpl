@@ -1,5 +1,11 @@
 {{ $CurrentContainer := where $ "ID" .Docker.CurrentContainerID | first }}
 
+{{ define "letsencryptLocation" }}
+    location /.well-known/acme-challenge {
+        proxy_pass http://127.0.0.1:9080;
+    }
+{{ end }}
+
 {{ define "upstream" }}
     {{ if .Address }}
         {{/* If we got the containers from swarm and this container's port is published to host, use host IP:PORT */}}
@@ -104,7 +110,6 @@ server {
     }
 
     {{ $letsencrypt := or ($.Env.LETSENCRYPT) "false" }}
-
     {{ $default_host := or ($.Env.DEFAULT_HOST) "" }}
     {{ $default_server := index (dict $host "" $default_host "default_server") $host }}
 
@@ -128,7 +133,9 @@ server {
     {{/* Use the cert specified on the container or fallback to the best vhost match */}}
     {{ $cert := (coalesce $certName $vhostCert) }}
 
-    {{ $is_https := (and (ne $cert "") (exists (printf "/etc/nginx/certs/%s.crt" $cert)) (exists (printf "/etc/nginx/certs/%s.key" $cert))) }}
+    {{ $is_le_https := (and (ne $letsencrypt "false") (ne $cert "") (exists (printf "/etc/letsencrypt/live/%s/fullchain.pem" $cert)) (exists (printf "/etc/letsencrypt/live/%s/privkey.pem" $cert)))  }}
+    {{ $is_nle_https := (and (eq $letsencrypt "false") (ne $cert "") (exists (printf "/etc/nginx/certs/%s.crt" $cert)) (exists (printf "/etc/nginx/certs/%s.key" $cert))) }}
+    {{ $is_https := (or ($is_le_https) ($is_nle_https) ) }}
 
     {{ if $is_https }}
 
@@ -155,8 +162,8 @@ server {
             ssl_session_tickets off;
 
             {{ if (ne $letsencrypt "false") }}
-                ssl_certificate /etc/letsencrypt/live/{{ $cert }}/fullchain.pem
-                ssl_certificate_key /etc/letsencrypt/live/{{ $cert }}/privkey.pem
+                ssl_certificate /etc/letsencrypt/live/{{ $cert }}/fullchain.pem;
+                ssl_certificate_key /etc/letsencrypt/live/{{ $cert }}/privkey.pem;
             {{ else }}
                 ssl_certificate /etc/nginx/certs/{{ (printf "%s.crt" $cert) }};
                 ssl_certificate_key /etc/nginx/certs/{{ (printf "%s.key" $cert) }};
@@ -177,7 +184,7 @@ server {
             {{ end }}
 
             {{ if (ne $letsencrypt "false") }}
-                include "/etc/docker-gen/templates/nginx-letsencrypt.inc"
+                {{ template "letsencryptLocation" }}
             {{ end }}
 
             location / {
