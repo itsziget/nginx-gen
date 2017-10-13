@@ -226,7 +226,12 @@ server {
             {{ if (gt $countRootContainers 0) }}
             {{/* Get the VIRTUAL_PROTO defined by containers w/ the same vhost, falling back to "http" */}}
             {{ $proto := or (first (groupByKeys $rootContainers "Env.VIRTUAL_PROTO")) "http" }}
+            {{ $proxyUnlimitedBodySize := or (first (groupByKeys $rootContainers "Env.PROXY_UNLIMITED_BODY_SIZE")) "false"}}
+
             location / {
+                {{ if (ne $proxyUnlimitedBodySize "false") }}
+                client_max_body_size 0;
+                {{ end }}
                 {{ if eq $proto "uwsgi" }}
                     include uwsgi_params;
                     uwsgi_pass {{ trim $proto }}://{{ trim $host }};
@@ -249,7 +254,12 @@ server {
                 {{ $upstreamLocation := replace $location "/" "__" -1 }}
                 {{/* Get the VIRTUAL_PROTO defined by containers w/ the same vhost, falling back to "http" */}}
                 {{ $proto := or (first (groupByKeys $pContainers "Env.VIRTUAL_PROTO")) "http" }}
+                {{ $proxyUnlimitedBodySize := or (first (groupByKeys $pContainers "Env.PROXY_UNLIMITED_BODY_SIZE")) "false"}}
+
                 location {{ $location }} {
+                    {{ if (ne $proxyUnlimitedBodySize "false") }}
+                    client_max_body_size 0;
+                    {{ end }}
                     {{ if eq $proto "uwsgi" }}
                         include uwsgi_params;
                         uwsgi_pass {{ trim $proto }}://{{ trim $host }}{{ trim $upstreamLocation }};
@@ -287,7 +297,12 @@ server {
             {{ if (gt $countRootContainers 0) }}
                 {{/* Get the VIRTUAL_PROTO defined by containers w/ the same vhost, falling back to "http" */}}
                 {{ $proto := or (first (groupByKeys $rootContainers "Env.VIRTUAL_PROTO")) "http" }}
+                {{ $proxyUnlimitedBodySize := or (first (groupByKeys $rootContainers "Env.PROXY_UNLIMITED_BODY_SIZE")) "false"}}
+
                 location / {
+                    {{ if (ne $proxyUnlimitedBodySize "false") }}
+                    client_max_body_size 0;
+                    {{ end }}
                     {{ if eq $proto "uwsgi" }}
                         include uwsgi_params;
                         uwsgi_pass {{ trim $proto }}://{{ trim $host }};
@@ -310,7 +325,12 @@ server {
                 {{ $upstreamLocation := replace $location "/" "__" -1 }}
                 {{/* Get the VIRTUAL_PROTO defined by containers w/ the same vhost, falling back to "http" */}}
                 {{ $proto := or (first (groupByKeys $pContainers "Env.VIRTUAL_PROTO")) "http" }}
+                {{ $proxyUnlimitedBodySize := or (first (groupByKeys $pContainers "Env.PROXY_UNLIMITED_BODY_SIZE")) "false"}}
+
                 location {{ $location }} {
+                    {{ if (ne $proxyUnlimitedBodySize "false") }}
+                    client_max_body_size 0;
+                    {{ end }}
                     {{ if eq $proto "uwsgi" }}
                         include uwsgi_params;
                         uwsgi_pass {{ trim $proto }}://{{ trim $host }}{{ trim $upstreamLocation }};
